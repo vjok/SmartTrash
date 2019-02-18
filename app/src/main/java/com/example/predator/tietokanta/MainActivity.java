@@ -1,73 +1,152 @@
-package com.example.predator.tietokanta;
+package com.example.omistaja.trashcan;
 
+import android.content.Context;
+import android.content.Intent;
+import android.graphics.Color;
+import android.graphics.Matrix;
+import android.graphics.PorterDuff;
+import android.graphics.PorterDuffColorFilter;
+import android.graphics.drawable.AnimatedImageDrawable;
+import android.graphics.drawable.ClipDrawable;
+import android.graphics.drawable.Drawable;
+import android.net.Uri;
+import android.os.Build;
+import android.support.v4.content.ContextCompat;
+import android.support.v4.widget.SwipeRefreshLayout;
 import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
-import android.util.Log;
+import android.util.DisplayMetrics;
+import android.view.View;
+import android.widget.AdapterView;
+import android.widget.EditText;
+import android.widget.Gallery;
+import android.widget.ImageView;
+import android.widget.LinearLayout;
+import android.widget.ListView;
 import android.widget.TextView;
 
-import com.google.gson.Gson;
+import com.google.android.gms.common.util.NumberUtils;
 
-import java.io.IOException;
+import java.util.ArrayList;
 
-import okhttp3.Call;
-import okhttp3.Callback;
-import okhttp3.OkHttpClient;
-import okhttp3.Request;
-import okhttp3.Response;
+public class MainActivity extends AppCompatActivity implements View.OnClickListener {
+    private ImageView imageViewFill = null;
+    private ImageView imageViewBorder = null;
+    private TextView textViewStatus = null;
+    private TextView textViewFullness = null;
+    private static ListView listViewPlaces = null;
+    private EditText editTextPhoneNumber = null;
 
-public class MainActivity extends AppCompatActivity {
+    ClipDrawable clipDrawable = null;
+    Drawable fillImg = null;
+    private int level = 0;
 
-    TextView textView1, textView2 = null;
-    Gson gson = new Gson();
+    public static PlaceSearch placeSearch = new PlaceSearch();
+    public static ArrayList<PlaceSearchResult> places = new ArrayList<PlaceSearchResult>();
+    static PlaceArrayAdapter adapter;
+    public static Context context = null;
+
 
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
+        context = this;
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
 
-        Trashcan trashcan = new Trashcan();
-        textView1 = findViewById(R.id.tw1);
-
-        OkHttpClient client = new OkHttpClient();
-
-        String url = "https://6y0hioo0zc.execute-api.eu-central-1.amazonaws.com/test?id=1";
-
-        Request request = new Request.Builder()
-                .url(url)
-                .build();
-
-        client.newCall(request).enqueue(new Callback() {
+        SwipeRefreshLayout pullToRefresh = findViewById(R.id.pullToRefresh);
+        pullToRefresh.setOnRefreshListener(new SwipeRefreshLayout.OnRefreshListener() {
             @Override
-            public void onFailure(Call call, IOException e) {
-                e.printStackTrace();
+            public void onRefresh() {
+                //update from database
+                setLevel(level+500);
+                pullToRefresh.setRefreshing(false);
             }
+        });
 
+        listViewPlaces = findViewById(R.id.listViewPlaces);
+        listViewPlaces.setVisibility(View.INVISIBLE);
+        listViewPlaces.setOnItemClickListener(new AdapterView.OnItemClickListener() {
             @Override
-            public void onResponse(Call call, Response response) throws IOException {
-                if (response.isSuccessful())
-                {
-                    final String myresponse = (String) response.body().string();
-                    final String testi = myresponse.substring(1,myresponse.length()-1);
+            public void onItemClick(AdapterView<?> parent, View view, int position, long id) {
+                String phoneNumber = places.get(position).getPhoneNumber();
 
-                    //final String pitaisiOllaTallainen = "{\"id\":1, \"name\":\"hep-roskis\"}";
-
-                    MainActivity.this.runOnUiThread(new Runnable() {
-                        @Override
-                        public void run() {
-
-                            String finalString = testi.replace("\\", "");
-
-                            Log.d("testi","Joo: "+testi);
-                            Log.d("testi","Testi: "+finalString);
-                            Trashcan trashcan = gson.fromJson(testi, Trashcan.class);
-
-                        }
-                    });
+                if(!phoneNumber.equals("Can't find number")) {
+                    editTextPhoneNumber.setText(phoneNumber);
                 }
             }
         });
 
-        textView1.setText("ID: "+trashcan.getId()+" Name: "+trashcan.getName()+"Location: "+trashcan.getLocation());
+
+
+        imageViewFill = findViewById(R.id.imageViewTrashCanFill);
+        imageViewBorder = findViewById(R.id.imageViewTrashCanBorder);
+        textViewStatus = findViewById(R.id.textViewStatus);
+        textViewFullness = findViewById(R.id.textViewContent);
+        editTextPhoneNumber = findViewById(R.id.editTextCall);
+
+        //Setting up the indicator
+        fillImg = ContextCompat.getDrawable(this, R.drawable.ic_trash_fill);
+        clipDrawable = (ClipDrawable) ContextCompat.getDrawable(this, R.drawable.clip_source);
+        Drawable border = ContextCompat.getDrawable(this,R.drawable.ic_trash_border);
+        border.setColorFilter(new PorterDuffColorFilter(Color.RED, PorterDuff.Mode.SRC_ATOP));
+
+        placeSearch.searchPlaces(context,"");
+        findViewById(R.id.buttonCall).setOnClickListener(this);
+
+    }
+
+    @Override
+    public void onClick(View v) {
+        if(v.getId() == R.id.buttonCall){
+            Intent intent = new Intent(Intent.ACTION_DIAL);
+            intent.setData(Uri.parse("tel:" + editTextPhoneNumber.getText().toString()));
+            startActivity(intent);
+        }
+    }
+
+    public void setLevel(int level) {
+        final int YELLOW = 3500;
+        final int RED = 6500;
+        ClipDrawable drawable = (ClipDrawable) imageViewFill.getDrawable();
+
+        if( level >= 10000){ level = 10000; }
+        drawable.setLevel(level);
+        /*
+        //Change color, if supported
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+            if( level >= 10000){
+                level = 10000;
+            } else if (level > RED ) {
+                fillImg.setColorFilter(new PorterDuffColorFilter(Color.RED, PorterDuff.Mode.SRC_ATOP));
+            } else if(level > YELLOW) {
+                fillImg.setColorFilter(new PorterDuffColorFilter(Color.YELLOW, PorterDuff.Mode.SRC_ATOP));
+            } else {
+                fillImg.setColorFilter(new PorterDuffColorFilter(Color.parseColor("#7fb22c"), PorterDuff.Mode.SRC_ATOP));
+            }
+            clipDrawable.setDrawable(fillImg);
+            imageViewFill.setImageDrawable(clipDrawable);
+        }
+        */
+
+        int percent = (int)((double)level/10000*100);
+        textViewStatus.setText(Integer.toString(percent)+ "%");
+        int content = (int) ((double)percent/100 * 200);
+        textViewFullness.setText(Integer.toString(content)+ "L");
+
+        if (level <= 5000){
+            listViewPlaces.setVisibility(View.INVISIBLE);
+        }else{
+            placeSearch.searchPlaces(context,"");
+            listViewPlaces.setVisibility(View.VISIBLE);
+        }
+        this.level = level;
+    }
+
+
+    public static void updatePlaces(){
+        adapter = new PlaceArrayAdapter(context, places);
+        adapter.notifyDataSetChanged();
+        listViewPlaces.setAdapter(adapter);
     }
 }
