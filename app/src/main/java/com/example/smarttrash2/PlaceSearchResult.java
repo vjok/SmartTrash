@@ -1,4 +1,4 @@
-package com.example.smarttrash2;
+package com.example.omistaja.trashcan;
 
 import com.google.android.gms.common.api.ApiException;
 import com.google.android.gms.tasks.Task;

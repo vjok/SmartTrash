@@ -1,4 +1,4 @@
-package com.example.smarttrash2;
+package com.example.omistaja.trashcan;
 
 import android.content.Context;
 import android.support.annotation.NonNull;
